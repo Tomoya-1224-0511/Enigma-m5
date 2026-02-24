@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Enigma M5 - Anti-BruteForce Edition</title>
+    <style>
+        /* スタイル部分 */
+        body { background: radial-gradient(circle, #2c3e50, #000); color: #ecf0f1; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .machine-body { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 8px solid #333; box-shadow: 0 0 100px rgba(0,0,0,0.9); width: 650px; text-align: center; }
+        .rotor-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; background: #000; padding: 20px; border-radius: 10px; border: 2px inset #333; }
+        .rotor-unit span { font-size: 10px; color: #7f8c8d; display: block; }
+        input[type="number"] { width: 55px; height: 60px; background: #222; color: #f1c40f; border: 2px solid #444; border-radius: 5px; text-align: center; font-size: 24px; }
+        .plugboard-container { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px dashed #444; }
+        .plugboard-input { width: 90%; background: #111; color: #e74c3c; border: 1px solid #c0392b; padding: 8px; font-size: 16px; letter-spacing: 2px; text-align: center; }
+        textarea { width: 100%; height: 80px; background: #000; color: #2ecc71; border: 1px solid #27ae60; border-radius: 5px; padding: 10px; font-size: 18px; resize: none; box-sizing: border-box; outline: none; text-shadow: 0 0 5px rgba(46, 204, 113, 0.5); }
+        .label { font-size: 12px; color: #95a5a6; margin: 10px 0 5px; display: block; text-align: left; }
+    </style>
+</head>
+<body>
+
+<div class="machine-body">
+    <h1 style="color: #bdc3c7; font-size: 1.2rem; margin-top:0;">ENIGMA M5 - SECURE SYSTEM</h1>
+
+    <div class="rotor-container">
+        <div class="rotor-unit"><span>R5</span><input type="number" class="rotor-pos" value="0" min="0" max="25"></div>
+        <div class="rotor-unit"><span>R4</span><input type="number" class="rotor-pos" value="0" min="0" max="25"></div>
+        <div class="rotor-unit"><span>R3</span><input type="number" class="rotor-pos" value="0" min="0" max="25"></div>
+        <div class="rotor-unit"><span>R2</span><input type="number" class="rotor-pos" value="0" min="0" max="25"></div>
+        <div class="rotor-unit"><span>R1</span><input type="number" class="rotor-pos" value="0" min="0" max="25"></div>
+    </div>
+
+    <div class="plugboard-container">
+        <span class="label" style="text-align:center;">PLUGBOARD (Pairs: AB CD EF...)</span>
+        <input type="text" id="plugboard" class="plugboard-input" placeholder="例: AB CD EF" oninput="runEnigma()">
+    </div>
+
+    <span class="label">▼ INPUT</span>
+    <textarea id="input" oninput="runEnigma()"></textarea>
+    
+    <span class="label">▲ OUTPUT</span>
+    <textarea id="output" readonly></textarea>
+</div>
+
+<script>
+    // --- 防御システム ---
+    let isLocked = false;
+    let attemptCount = 0;
+
+    function runEnigma() {
+        // 1. ロックのチェック
+        if (isLocked) {
+            alert("セキュリティロック中：短時間の過剰な操作を検知しました。");
+            return;
+        }
+
+        // 2. カウントアップ
+        attemptCount++;
+
+        // 3. 総当たり検知（例：短時間に30回以上入力変化があったらロック）
+        if (attemptCount > 30) {
+            isLocked = true;
+            console.log("Brute-force detected: Locking for 10 seconds...");
+            setTimeout(() => {
+                isLocked = false;
+                attemptCount = 0;
+                console.log("Lock released.");
+            }, 10000); // 10秒ロック
+            return;
+        }
+
+        // --- ここからエニグマのロジック ---
+        const input = document.getElementById('input').value.toUpperCase();
+        const plugSetting = document.getElementById('plugboard').value.toUpperCase();
+        
+        let plugMap = {};
+        const pairs = plugSetting.split(" ");
+        pairs.forEach(pair => {
+            if(pair.length === 2) {
+                plugMap[pair[0]] = pair[1];
+                plugMap[pair[1]] = pair[0];
+            }
+        });
+
+        const wirings = [
+            "EKMFLGDQVZNTOWYHXUSPAIBRCJ", "AJDKSIRUXBLHWTMCQGZNPYFVOE",
+            "BDFHJLCPRTXVZNYEIWGAKMUSQO", "ESOVPZJAYQUIRHXLNFTGKDCMWB",
+            "VZBRGITYUPSDNHLXAWMJQOFECK"
+        ].map(w => w.split("").map(c => c.charCodeAt(0) - 65));
+
+        let positions = Array.from(document.querySelectorAll('.rotor-pos')).map(el => parseInt(el.value) || 0);
+        let currentPos = [...positions].reverse();
+
+        let output = "";
+        for (let i = 0; i < input.length; i++) {
+            let char = input[i];
+            if (char >= 'A' && char <= 'Z') {
+                char = plugMap[char] || char;
+                let signal = char.charCodeAt(0) - 65;
+
+                for (let j = 0; j < 5; j++) {
+                    signal = (signal + currentPos[j]) % 26;
+                    signal = wirings[j][signal];
+                    signal = (signal - currentPos[j] + 26) % 26;
+                }
+
+                signal = 25 - signal;
+
+                for (let j = 4; j >= 0; j--) {
+                    signal = (signal + currentPos[j]) % 26;
+                    signal = wirings[j].indexOf(signal);
+                    signal = (signal - currentPos[j] + 26) % 26;
+                }
+
+                let outChar = String.fromCharCode(signal + 65);
+                outChar = plugMap[outChar] || outChar;
+                output += outChar;
+
+                currentPos[0]++;
+                for (let j = 0; j < 4; j++) {
+                    if (currentPos[j] >= 26) { currentPos[j] = 0; currentPos[j+1]++; }
+                }
+            } else { output += char; }
+        }
+        document.getElementById('output').value = output;
+    }
+</script>
+</body>
+</html>
